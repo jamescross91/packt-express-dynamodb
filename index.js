@@ -1,21 +1,54 @@
 const express = require('express');
 const app = express();
 const aws = require('aws-sdk');
-const s3 = new aws.S3();
+const table = 'my-users-table';
 
-const getParams = {
-    Bucket: 'packt-james-test-bucket', // your bucket name,
-    Key: 'packt-test-file.txt' // path to the object you're looking for
-}
+aws.config.update({
+    region: "eu-west-1"
+});
 
-app.get('/', function (req, res) {
-  s3.getObject(getParams, function(err, data) {
-    // Handle any error and exit
-    if (err)
-        return err;
+var docClient = new aws.DynamoDB.DocumentClient();
 
-    var objectData = data.Body.toString('utf-8'); 
-      res.send(objectData);// Use the encoding necessary
+app.get('/emails/:email', function (req, res) {
+    let email_address = req.params['email'];
+
+    var params = {
+        TableName: table,
+        KeyConditionExpression: 'email_address = :email_address',
+        ExpressionAttributeValues: {
+            ":email_address": email_address
+        }
+    }
+
+    docClient.query(params, function(err, data) {
+        if (err) {
+            console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+        } else {
+            console.log("Query succeeded.");
+            res.send(data.Items)
+        }
+    });
+})
+
+app.get('/users/:username', function (req, res) {
+    let username = req.params['username'];
+
+    var params = {
+        TableName: table,
+        IndexName: 'username-index',
+        KeyConditionExpression: 'username = :username',
+        ExpressionAttributeValues: {
+            ":username": username
+        }
+    }
+
+    docClient.query(params, function(err, data) {
+        if (err) {
+            console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+        } else {
+            console.log("Query succeeded.");
+            res.send(data.Items)
+        }
     });
 })
 
